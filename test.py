@@ -8,11 +8,14 @@ from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
 import streamlit as st
 
+openai = st.secrets['OA_API_KEY']
+pc_pinecone = st.secrets['PC_API_KEY']
+
 client = OpenAI(
-    api_key="API_KEY",
+    api_key=openai,
 )
 
-pc = Pinecone(api_key="PC_API_KEY")
+pc = Pinecone(api_key=pc_pinecone)
 
 
 # Connect to the index
