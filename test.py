@@ -62,7 +62,7 @@ def upload_to_pinecone(index, model, email_data):
 # 4. Query Directly by Record ID
 def query_pinecone(index, record_id):
     # Fetch the record directly by its ID
-    result = index.fetch(ids=[record_id], include_metadata=True)
+    result = index.fetch(ids=[record_id])
 
     if not result or record_id not in result['vectors']:
         return {"error": "No relevant records found for the given ID."}
