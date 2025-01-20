@@ -60,7 +60,7 @@ def upload_to_pinecone(index, model, email_data):
 
 
 # 4. Query Directly by Record ID
-def query_pinecone(index, record_id):
+def query_pinecone(index, record_id, question):
     # Fetch the record directly by its ID
     result = index.fetch(ids=[record_id])
 
@@ -77,7 +77,7 @@ def query_pinecone(index, record_id):
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[
-            {"role": "system", "content": "You are a helpful assistant. If no information is available for the question asked, respond with 'No."},
+            {"role": "system", "content": "You are a helpful assistant. If no information is available for the question asked, respond with 'No.'"},
             {"role": "user", "content": input_prompt}
         ],
         max_tokens=200,
@@ -132,7 +132,7 @@ user_query = st.text_input("Ask a question about the uploaded email:")
 if st.button("Submit Query"):
     if 'record_id' in st.session_state:  # Ensure the record_id is defined in session state
         record_id = st.session_state.record_id
-        result = query_pinecone(index, record_id)
+        result = query_pinecone(index, record_id, user_query)
         if "error" in result:
             st.error(result["error"])
         else:
