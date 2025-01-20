@@ -5,9 +5,8 @@ from email import policy
 from email.parser import BytesParser
 from sentence_transformers import SentenceTransformer
 from openai import OpenAI
-from pinecone import Pinecone, ServerlessSpec
+from pinecone import Pinecone
 import streamlit as st
-
 
 openai = st.secrets['OA_API_KEY']
 pc_pinecone = st.secrets['PC_API_KEY']
@@ -42,37 +41,9 @@ def parse_email(email_file):
     return {'email_text': email_text.strip(), 'email_name': subject or 'Unnamed Email'}
 
 
-# 2. Process Attachments and Extract Text
-def extract_text_from_attachments(attachments):
-    extracted_texts = {}
-    for attachment in attachments:
-        file_path, file_type = attachment
-        try:
-            if file_type == 'pdf':
-                reader = PdfReader(file_path)
-                extracted_texts[file_path] = "\n".join(page.extract_text() for page in reader.pages)
-            elif file_type == 'docx':
-                doc = Document(file_path)
-                extracted_texts[file_path] = "\n".join(para.text for para in doc.paragraphs)
-            else:
-                extracted_texts[file_path] = "Unsupported file type"
-        except Exception as e:
-            extracted_texts[file_path] = f"Error extracting text: {str(e)}"
-    return extracted_texts
-
-
-# 3. Upload Email and Attachments to Pinecone
-def upload_to_pinecone(index, model, email_data, attachment_texts=None):
-    # Combine email and attachment text for embedding
-    if attachment_texts:
-        combined_text = email_data['email_text'] + "\n\n" + "\n\n".join([
-            f"Attachment: {attachment}\n\n{text}"
-            for attachment, text in attachment_texts.items()
-        ])
-    else:
-        combined_text = email_data['email_text']
-
-    email_embedding = model.encode(combined_text)
+# 3. Upload Email to Pinecone
+def upload_to_pinecone(index, model, email_data):
+    email_embedding = model.encode(email_data['email_text'])
 
     # Generate a unique ID for the record
     record_id = str(uuid.uuid4())
@@ -80,26 +51,23 @@ def upload_to_pinecone(index, model, email_data, attachment_texts=None):
     # Upload the combined data as a single record
     index.upsert(vectors=[
         (record_id, email_embedding.tolist(), {
-            "type": "email_with_attachments",
-            "content": combined_text
+            "type": "email",
+            "content": email_data['email_text']
         })
     ])
-
+    print(f"Record uploaded with ID: {record_id}")
     return record_id
 
 
-# 4. Query Against a Specific Record
-def query_pinecone(index, model, record_id, question):
-    query_embedding = model.encode(question).tolist()
-    results = index.query(vector=query_embedding, top_k=5, include_metadata=True)
+# 4. Query Directly by Record ID
+def query_pinecone(index, record_id):
+    # Fetch the record directly by its ID
+    result = index.fetch(ids=[record_id], include_metadata=True)
 
-    # Retrieve the relevant record
-    record = next((match for match in results['matches'] if match['id'] == record_id), None)
-
-    if not record:
+    if not result or record_id not in result['vectors']:
         return {"error": "No relevant records found for the given ID."}
 
-    content = record['metadata']['content']
+    content = result['vectors'][record_id]['metadata']['content']
 
     # Use OpenAI GPT to generate an answer
     input_prompt = (
@@ -150,11 +118,8 @@ if uploaded_file is not None:
     # Parse the uploaded file
     email_data = parse_email(uploaded_file)
 
-    # No attachments are processed in this version, so pass `None`
-    attachment_texts = None
-
     # Upload the parsed email to Pinecone
-    record_id = upload_to_pinecone(index, model, email_data, attachment_texts)
+    record_id = upload_to_pinecone(index, model, email_data)
 
     st.session_state.record_id = record_id
 
@@ -167,7 +132,7 @@ user_query = st.text_input("Ask a question about the uploaded email:")
 if st.button("Submit Query"):
     if 'record_id' in st.session_state:  # Ensure the record_id is defined in session state
         record_id = st.session_state.record_id
-        result = query_pinecone(index, model, record_id, user_query)
+        result = query_pinecone(index, record_id)
         if "error" in result:
             st.error(result["error"])
         else:
