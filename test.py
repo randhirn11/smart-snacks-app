@@ -9,10 +9,10 @@ from pinecone import Pinecone, ServerlessSpec
 import streamlit as st
 
 client = OpenAI(
-    api_key="sk-proj-AVwQKyq4Jt1bhIr4HiCkT3BlbkFJbAJ0WEdijOu9V1ePMphV",
+    api_key="API_KEY",
 )
 
-pc = Pinecone(api_key="pcsk_6iu7GJ_7b54XiA4URPW2nemkgFHyjFzBbtSqc5wdFERdjxWTb8kCQaKBY4pKPGPMRBvrLj")
+pc = Pinecone(api_key="PC_API_KEY")
 
 
 # Connect to the index
