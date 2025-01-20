@@ -154,8 +154,10 @@ if uploaded_file is not None:
     st.success(f"Email uploaded successfully! Record ID: {record_id}")
 
 # Query Section
-if selected_record:
-    user_query = st.text_input("Ask a question about the selected email:")
+user_query = st.text_input("Ask a question about the uploaded email:")
     if st.button("Submit Query"):
-        answer = query_pinecone(index, model, selected_record, user_query)
-        st.write("Answer:", answer)
+        result = query_pinecone(index, model, record_id, user_query)
+        if "error" in result:
+            st.error(result["error"])
+        else:
+            st.write("Answer:", result)
