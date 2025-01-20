@@ -7,8 +7,7 @@ from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
 import streamlit as st
-from PyPDF2 import PdfReader
-from docx import Document
+
 
 openai = st.secrets['OA_API_KEY']
 pc_pinecone = st.secrets['PC_API_KEY']
