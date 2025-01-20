@@ -7,6 +7,8 @@ from sentence_transformers import SentenceTransformer
 from openai import OpenAI
 from pinecone import Pinecone, ServerlessSpec
 import streamlit as st
+from PyPDF2 import PdfReader
+from docx import Document
 
 openai = st.secrets['OA_API_KEY']
 pc_pinecone = st.secrets['PC_API_KEY']
@@ -40,6 +42,7 @@ def parse_email(email_file):
     email_text = f"Subject: {subject}\nFrom: {sender}\nTo: {recipient}\n\n{' '.join(body.split())}"
     return {'email_text': email_text.strip(), 'email_name': subject or 'Unnamed Email'}
 
+
 # 2. Process Attachments and Extract Text
 def extract_text_from_attachments(attachments):
     extracted_texts = {}
@@ -57,6 +60,7 @@ def extract_text_from_attachments(attachments):
         except Exception as e:
             extracted_texts[file_path] = f"Error extracting text: {str(e)}"
     return extracted_texts
+
 
 # 3. Upload Email and Attachments to Pinecone
 def upload_to_pinecone(index, model, email_data, attachment_texts=None):
@@ -83,6 +87,7 @@ def upload_to_pinecone(index, model, email_data, attachment_texts=None):
     ])
 
     return record_id
+
 
 # 4. Query Against a Specific Record
 def query_pinecone(index, model, record_id, question):
@@ -125,6 +130,7 @@ def query_pinecone(index, model, record_id, question):
         "answer": answer
     }
 
+
 # Streamlit App
 st.title("Project Smart Snacks!!")
 st.sidebar.title("Uploaded Records")
@@ -138,6 +144,7 @@ record_dict = {
 
 selected_record = st.sidebar.selectbox("Select a Record", options=list(record_dict.keys()), format_func=lambda x: record_dict[x])
 
+
 # File Upload Section
 uploaded_file = st.file_uploader("Upload an Email File (.eml)", type=["eml"])
 if uploaded_file is not None:
@@ -150,15 +157,21 @@ if uploaded_file is not None:
     # Upload the parsed email to Pinecone
     record_id = upload_to_pinecone(index, model, email_data, attachment_texts)
 
+    st.session_state.record_id = record_id
+
     # Show success message and record ID
     st.success(f"Email uploaded successfully! Record ID: {record_id}")
+
 
 # Query Section
 user_query = st.text_input("Ask a question about the uploaded email:")
 if st.button("Submit Query"):
-    result = query_pinecone(index, model, record_id, user_query)
-    if "error" in result:
-        st.error(result["error"])
+    if 'record_id' in st.session_state:  # Ensure the record_id is defined in session state
+        record_id = st.session_state.record_id
+        result = query_pinecone(index, model, record_id, user_query)
+        if "error" in result:
+            st.error(result["error"])
+        else:
+            st.write("Answer:", result)
     else:
-        st.write("Answer:", result)
-
+        st.error("No record uploaded yet. Please upload an email first.")
