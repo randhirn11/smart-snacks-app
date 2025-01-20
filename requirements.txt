@@ -1,0 +1,8 @@
+os
+json
+uuid
+email
+sentence-transformers
+openai
+pinecone-client
+streamlit
